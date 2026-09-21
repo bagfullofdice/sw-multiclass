@@ -8,7 +8,7 @@ const DEFAULTS = {
   collapsed: true,
   sharedXp: 0,
   xpRemainderCursor: 0,
-  lastDistributedSharedXp: null,
+  lastDistributedSharedXp: -1,
   classes: []
 };
 
@@ -63,10 +63,7 @@ function getProgression(actor) {
   data.syncSystemFields = data.syncSystemFields !== false;
   data.collapsed = data.collapsed !== false;
   data.xpRemainderCursor = Math.max(0, Math.floor(asNumber(data.xpRemainderCursor, 0)));
-  data.lastDistributedSharedXp =
-    data.lastDistributedSharedXp === null || data.lastDistributedSharedXp === undefined
-      ? null
-      : Math.max(0, Math.floor(asNumber(data.lastDistributedSharedXp, 0)));
+  data.lastDistributedSharedXp = Math.floor(asNumber(data.lastDistributedSharedXp, -1));
   return data;
 }
 
@@ -102,8 +99,8 @@ async function saveProgression(actor, data) {
     sharedXp: Math.max(0, Math.floor(asNumber(data.sharedXp, 0))),
     xpRemainderCursor: Math.max(0, Math.floor(asNumber(data.xpRemainderCursor, 0))),
     lastDistributedSharedXp:
-      data.lastDistributedSharedXp === null || data.lastDistributedSharedXp === undefined
-        ? null
+      data.lastDistributedSharedXp < 0
+        ? -1
         : Math.max(0, Math.floor(asNumber(data.lastDistributedSharedXp, 0))),
     classes: (data.classes || []).map(normalizeClassEntry)
   };
@@ -122,7 +119,7 @@ function distributeSharedXp(data, { reset = false } = {}) {
   const count = activeClasses.length;
   let cursor = Math.max(0, Math.floor(asNumber(data.xpRemainderCursor, 0))) % count;
 
-  if (reset || data.lastDistributedSharedXp === null || data.lastDistributedSharedXp === undefined) {
+  if (reset || data.lastDistributedSharedXp < 0) {
     const share = Math.floor(totalXp / count);
     const remainder = totalXp % count;
 
@@ -339,6 +336,9 @@ function makeProgressionPanel(actor, data) {
 }
 
 function findInsertionTarget(root) {
+  const bloodline = root.querySelector(".mbrc-bloodline");
+  if (bloodline?.parentElement) return { target: bloodline, position: "after" };
+
   const selectors = [
     ".sheet-header",
     "header.sheet-header",
@@ -478,17 +478,21 @@ async function wirePanel(panel, actor) {
 }
 
 async function injectProgression(app, html) {
-  const actor = app?.actor ?? app?.document;
-  if (!actor || actor.documentName !== "Actor" || actor.type !== "character") return;
-  if (game.system.id !== "swords-wizardry") return;
+  try {
+    const actor = app?.actor ?? app?.document;
+    if (!actor || actor.documentName !== "Actor" || actor.type !== "character") return;
+    if (game.system.id !== "swords-wizardry") return;
 
-  const root = getRoot(html);
-  if (!root || root.querySelector(".mbrc-progression")) return;
+    const root = getRoot(html);
+    if (!root || root.querySelector(".mbrc-progression")) return;
 
-  const data = getProgression(actor);
-  const panel = makeProgressionPanel(actor, data);
-  insertPanel(panel, findInsertionTarget(root));
-  await wirePanel(panel, actor);
+    const data = getProgression(actor);
+    const panel = makeProgressionPanel(actor, data);
+    insertPanel(panel, findInsertionTarget(root));
+    await wirePanel(panel, actor);
+  } catch (error) {
+    console.error(`${MODULE_ID} | Failed to inject Class Progression panel`, error);
+  }
 }
 
 
@@ -516,8 +520,8 @@ async function handleExternalSharedXpUpdate(actor, changed, options) {
     sharedXp: Math.max(0, Math.floor(asNumber(data.sharedXp, 0))),
     xpRemainderCursor: Math.max(0, Math.floor(asNumber(data.xpRemainderCursor, 0))),
     lastDistributedSharedXp:
-      data.lastDistributedSharedXp === null || data.lastDistributedSharedXp === undefined
-        ? null
+      data.lastDistributedSharedXp < 0
+        ? -1
         : Math.max(0, Math.floor(asNumber(data.lastDistributedSharedXp, 0))),
     classes: data.classes.map(normalizeClassEntry)
   };
