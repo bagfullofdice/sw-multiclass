@@ -359,7 +359,6 @@ async function wirePanel(panel, actor) {
             distributeSharedXp(data);
           }
         }
-      if (data.mode === "multiclass") distributeSharedXp(data);
       });
     });
   });
@@ -403,6 +402,7 @@ async function wirePanel(panel, actor) {
         xpBonus: 0,
         status: "active"
       });
+      if (data.mode === "multiclass") distributeSharedXp(data);
     });
   });
 
@@ -416,6 +416,7 @@ async function wirePanel(panel, actor) {
         if (data.mode === "dualclass" && data.classes.length && !data.classes.some(c => c.status === "active")) {
           data.classes[data.classes.length - 1].status = "active";
         }
+        if (data.mode === "multiclass") distributeSharedXp(data);
       });
     });
   });
