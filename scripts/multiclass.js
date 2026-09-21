@@ -277,15 +277,15 @@ function makeProgressionPanel(actor, data) {
 
   section.innerHTML = `
     <div class="mbrc-progression-title">
+      <button type="button" class="mbrc-collapse-toggle" title="${data.collapsed ? "Expand" : "Collapse"} class progression" aria-label="${data.collapsed ? "Expand" : "Collapse"} class progression">
+        <i class="fas fa-chevron-${data.collapsed ? "right" : "down"}"></i>
+      </button>
       <span class="mbrc-progression-icon"><i class="fas fa-layer-group"></i></span>
       <strong>Class Progression</strong>
       <div class="mbrc-title-summary">
         <span>${esc(displayClassName(data) || "No classes")}</span>
         <span>Lvl ${esc(displayLevel(data) || "—")}</span>
       </div>
-      <button type="button" class="mbrc-collapse-toggle" title="${data.collapsed ? "Expand" : "Collapse"} class progression" aria-label="${data.collapsed ? "Expand" : "Collapse"} class progression">
-        <i class="fas fa-chevron-${data.collapsed ? "down" : "up"}"></i>
-      </button>
       <label class="mbrc-enable-toggle">
         <input type="checkbox" data-mbrc-progression-field="enabled" ${data.enabled ? "checked" : ""}>
         <span>Enable</span>
