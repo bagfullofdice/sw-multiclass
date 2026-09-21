@@ -104,10 +104,15 @@ function distributeSharedXp(data) {
   const activeClasses = data.classes.filter(c => c.status === "active");
   if (!activeClasses.length) return;
 
-  // Split the total shared XP evenly between active classes.
-  // Any indivisible remainder is dropped rather than creating fractional XP.
-  const share = Math.floor(Math.max(0, asNumber(data.sharedXp, 0)) / activeClasses.length);
-  for (const entry of activeClasses) entry.xp = share;
+  // Split total shared XP evenly using whole numbers only.
+  // Any remainder goes to the first active class in list order.
+  const totalXp = Math.max(0, Math.floor(asNumber(data.sharedXp, 0)));
+  const share = Math.floor(totalXp / activeClasses.length);
+  const remainder = totalXp % activeClasses.length;
+
+  activeClasses.forEach((entry, index) => {
+    entry.xp = share + (index === 0 ? remainder : 0);
+  });
 }
 
 function getActiveClasses(data) {
@@ -275,7 +280,7 @@ function makeProgressionPanel(actor, data) {
       </div>
 
       <p class="mbrc-progression-help">
-        Multi-Class tracks concurrent classes. Shared XP is divided evenly among checked Active classes; indivisible remainder XP is dropped. Dual-Class keeps former classes and one current active class. This panel stores progression in module flags so the S&amp;W system schema remains untouched.
+        Multi-Class tracks concurrent classes. Shared XP is divided evenly among checked Active classes using whole numbers; any remainder goes to the first active class in the list. Dual-Class keeps former classes and one current active class. This panel stores progression in module flags so the S&amp;W system schema remains untouched.
       </p>
     </div>
   `;
