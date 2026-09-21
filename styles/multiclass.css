@@ -32,8 +32,32 @@
   gap: 4px;
 }
 
-.mbrc-enable-toggle {
+.mbrc-title-summary {
+  display: flex;
+  gap: 8px;
   margin-left: auto;
+  font-size: 0.75rem;
+  opacity: 0.75;
+  min-width: 0;
+}
+
+.mbrc-title-summary span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mbrc-collapse-toggle {
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.mbrc-enable-toggle {
+  margin-left: 0;
 }
 
 .mbrc-progression-controls {
@@ -140,6 +164,10 @@
 .mbrc-progression-disabled > *:not(.mbrc-progression-help) {
   opacity: 0.45;
   pointer-events: none;
+}
+
+.mbrc-collapsed {
+  display: none;
 }
 
 .mbrc-hidden {
