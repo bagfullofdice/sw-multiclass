@@ -1,4 +1,6 @@
 .mbrc-progression {
+  display: block;
+  visibility: visible;
   margin: 6px 0;
   padding: 7px 9px;
   border: 1px solid var(--color-border-light-2, #8a8173);
