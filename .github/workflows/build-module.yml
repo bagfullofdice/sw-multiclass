@@ -1,0 +1,53 @@
+name: Build Foundry Module
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "module.json"
+      - "README.md"
+      - "scripts/**"
+      - "styles/**"
+      - ".github/workflows/build-module.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Read module version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(jq -r '.version' module.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build install ZIP
+        shell: bash
+        run: |
+          mkdir -p dist
+          rm -f "dist/sw-multiclass-v${{ steps.version.outputs.version }}.zip"
+          zip -r "dist/sw-multiclass-v${{ steps.version.outputs.version }}.zip" \
+            module.json README.md scripts styles
+
+      - name: Commit install ZIP
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/
+          if git diff --cached --quiet; then
+            echo "No package changes to commit."
+            exit 0
+          fi
+          git commit -m "Build v${{ steps.version.outputs.version }} install package [skip ci]"
+          git push
