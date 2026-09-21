@@ -7,6 +7,8 @@ const DEFAULTS = {
   syncSystemFields: true,
   collapsed: true,
   sharedXp: 0,
+  xpRemainderCursor: 0,
+  lastDistributedSharedXp: null,
   classes: []
 };
 
@@ -60,6 +62,11 @@ function getProgression(actor) {
   data.enabled = Boolean(data.enabled);
   data.syncSystemFields = data.syncSystemFields !== false;
   data.collapsed = data.collapsed !== false;
+  data.xpRemainderCursor = Math.max(0, Math.floor(asNumber(data.xpRemainderCursor, 0)));
+  data.lastDistributedSharedXp =
+    data.lastDistributedSharedXp === null || data.lastDistributedSharedXp === undefined
+      ? null
+      : Math.max(0, Math.floor(asNumber(data.lastDistributedSharedXp, 0)));
   return data;
 }
 
@@ -81,6 +88,8 @@ function seedFromActor(actor, data) {
     status: "active"
   }];
   data.sharedXp = xp;
+  data.xpRemainderCursor = 0;
+  data.lastDistributedSharedXp = xp;
   return data;
 }
 
@@ -90,7 +99,12 @@ async function saveProgression(actor, data) {
     mode: data.mode === "dualclass" ? "dualclass" : "multiclass",
     syncSystemFields: data.syncSystemFields !== false,
     collapsed: data.collapsed !== false,
-    sharedXp: Math.max(0, asNumber(data.sharedXp, 0)),
+    sharedXp: Math.max(0, Math.floor(asNumber(data.sharedXp, 0))),
+    xpRemainderCursor: Math.max(0, Math.floor(asNumber(data.xpRemainderCursor, 0))),
+    lastDistributedSharedXp:
+      data.lastDistributedSharedXp === null || data.lastDistributedSharedXp === undefined
+        ? null
+        : Math.max(0, Math.floor(asNumber(data.lastDistributedSharedXp, 0))),
     classes: (data.classes || []).map(normalizeClassEntry)
   };
 
@@ -99,20 +113,56 @@ async function saveProgression(actor, data) {
   return clean;
 }
 
-function distributeSharedXp(data) {
+function distributeSharedXp(data, { reset = false } = {}) {
   if (data.mode !== "multiclass") return;
   const activeClasses = data.classes.filter(c => c.status === "active");
   if (!activeClasses.length) return;
 
-  // Split total shared XP evenly using whole numbers only.
-  // Any remainder goes to the first active class in list order.
   const totalXp = Math.max(0, Math.floor(asNumber(data.sharedXp, 0)));
-  const share = Math.floor(totalXp / activeClasses.length);
-  const remainder = totalXp % activeClasses.length;
+  const count = activeClasses.length;
+  let cursor = Math.max(0, Math.floor(asNumber(data.xpRemainderCursor, 0))) % count;
 
-  activeClasses.forEach((entry, index) => {
-    entry.xp = share + (index === 0 ? remainder : 0);
-  });
+  if (reset || data.lastDistributedSharedXp === null || data.lastDistributedSharedXp === undefined) {
+    const share = Math.floor(totalXp / count);
+    const remainder = totalXp % count;
+
+    for (const entry of activeClasses) entry.xp = share;
+    for (let i = 0; i < remainder; i++) {
+      activeClasses[(cursor + i) % count].xp += 1;
+    }
+
+    data.xpRemainderCursor = (cursor + remainder) % count;
+    data.lastDistributedSharedXp = totalXp;
+    return;
+  }
+
+  const previousTotal = Math.max(0, Math.floor(asNumber(data.lastDistributedSharedXp, totalXp)));
+  const delta = totalXp - previousTotal;
+
+  if (delta > 0) {
+    const share = Math.floor(delta / count);
+    const remainder = delta % count;
+
+    for (const entry of activeClasses) entry.xp += share;
+    for (let i = 0; i < remainder; i++) {
+      activeClasses[(cursor + i) % count].xp += 1;
+    }
+
+    cursor = (cursor + remainder) % count;
+  } else if (delta < 0) {
+    const share = Math.floor(totalXp / count);
+    const remainder = totalXp % count;
+
+    for (const entry of activeClasses) entry.xp = share;
+    for (let i = 0; i < remainder; i++) {
+      activeClasses[(cursor + i) % count].xp += 1;
+    }
+
+    cursor = (cursor + remainder) % count;
+  }
+
+  data.xpRemainderCursor = cursor;
+  data.lastDistributedSharedXp = totalXp;
 }
 
 function getActiveClasses(data) {
@@ -280,7 +330,7 @@ function makeProgressionPanel(actor, data) {
       </div>
 
       <p class="mbrc-progression-help">
-        Multi-Class tracks concurrent classes. Shared XP is divided evenly among checked Active classes using whole numbers; any remainder goes to the first active class in the list. Dual-Class keeps former classes and one current active class. This panel stores progression in module flags so the S&amp;W system schema remains untouched.
+        Multi-Class tracks concurrent classes. Shared XP is divided evenly among checked Active classes using whole numbers. Remainder XP rotates round-robin through the active class list so the same class does not always receive the extra point. Dual-Class keeps former classes and one current active class. This panel stores progression in module flags so the S&amp;W system schema remains untouched.
       </p>
     </div>
   `;
@@ -361,7 +411,7 @@ async function wirePanel(panel, actor) {
             }
           } else {
             for (const c of data.classes) c.status = "active";
-            distributeSharedXp(data);
+            distributeSharedXp(data, { reset: true });
           }
         }
       });
@@ -386,7 +436,7 @@ async function wirePanel(panel, actor) {
         else if (field === "active") {
           entry.status = input.checked ? "active" : "former";
           enforceDualClassStatus(data, classId);
-          if (data.mode === "multiclass") distributeSharedXp(data);
+          if (data.mode === "multiclass") distributeSharedXp(data, { reset: true });
         }
       });
     });
@@ -407,7 +457,7 @@ async function wirePanel(panel, actor) {
         xpBonus: 0,
         status: "active"
       });
-      if (data.mode === "multiclass") distributeSharedXp(data);
+      if (data.mode === "multiclass") distributeSharedXp(data, { reset: true });
     });
   });
 
@@ -421,7 +471,7 @@ async function wirePanel(panel, actor) {
         if (data.mode === "dualclass" && data.classes.length && !data.classes.some(c => c.status === "active")) {
           data.classes[data.classes.length - 1].status = "active";
         }
-        if (data.mode === "multiclass") distributeSharedXp(data);
+        if (data.mode === "multiclass") distributeSharedXp(data, { reset: true });
       });
     });
   });
@@ -463,7 +513,12 @@ async function handleExternalSharedXpUpdate(actor, changed, options) {
     mode: data.mode,
     syncSystemFields: data.syncSystemFields !== false,
     collapsed: data.collapsed !== false,
-    sharedXp: Math.max(0, asNumber(data.sharedXp, 0)),
+    sharedXp: Math.max(0, Math.floor(asNumber(data.sharedXp, 0))),
+    xpRemainderCursor: Math.max(0, Math.floor(asNumber(data.xpRemainderCursor, 0))),
+    lastDistributedSharedXp:
+      data.lastDistributedSharedXp === null || data.lastDistributedSharedXp === undefined
+        ? null
+        : Math.max(0, Math.floor(asNumber(data.lastDistributedSharedXp, 0))),
     classes: data.classes.map(normalizeClassEntry)
   };
 
