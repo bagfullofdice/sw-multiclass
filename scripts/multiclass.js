@@ -5,6 +5,7 @@ const DEFAULTS = {
   enabled: false,
   mode: "multiclass",
   syncSystemFields: true,
+  collapsed: true,
   sharedXp: 0,
   classes: []
 };
@@ -57,6 +58,7 @@ function getProgression(actor) {
   data.mode = data.mode === "dualclass" ? "dualclass" : "multiclass";
   data.enabled = Boolean(data.enabled);
   data.syncSystemFields = data.syncSystemFields !== false;
+  data.collapsed = data.collapsed !== false;
   return data;
 }
 
@@ -85,6 +87,7 @@ async function saveProgression(actor, data) {
     enabled: Boolean(data.enabled),
     mode: data.mode === "dualclass" ? "dualclass" : "multiclass",
     syncSystemFields: data.syncSystemFields !== false,
+    collapsed: data.collapsed !== false,
     sharedXp: Math.max(0, asNumber(data.sharedXp, 0)),
     classes: (data.classes || []).map(normalizeClassEntry)
   };
@@ -213,13 +216,20 @@ function makeProgressionPanel(actor, data) {
     <div class="mbrc-progression-title">
       <span class="mbrc-progression-icon"><i class="fas fa-layer-group"></i></span>
       <strong>Class Progression</strong>
+      <div class="mbrc-title-summary">
+        <span>${esc(displayClassName(data) || "No classes")}</span>
+        <span>Lvl ${esc(displayLevel(data) || "—")}</span>
+      </div>
+      <button type="button" class="mbrc-collapse-toggle" title="${data.collapsed ? "Expand" : "Collapse"} class progression" aria-label="${data.collapsed ? "Expand" : "Collapse"} class progression">
+        <i class="fas fa-chevron-${data.collapsed ? "down" : "up"}"></i>
+      </button>
       <label class="mbrc-enable-toggle">
         <input type="checkbox" data-mbrc-progression-field="enabled" ${data.enabled ? "checked" : ""}>
         <span>Enable</span>
       </label>
     </div>
 
-    <div class="mbrc-progression-body ${data.enabled ? "" : "mbrc-progression-disabled"}">
+    <div class="mbrc-progression-body ${data.enabled ? "" : "mbrc-progression-disabled"} ${data.collapsed ? "mbrc-collapsed" : ""}">
       <div class="mbrc-progression-controls">
         <label>
           <span>Mode</span>
@@ -306,6 +316,12 @@ async function wirePanel(panel, actor) {
     if (rerender) await rerenderActor(actor);
     return data;
   };
+
+  panel.querySelector(".mbrc-collapse-toggle")?.addEventListener("click", async () => {
+    await persist(data => {
+      data.collapsed = !data.collapsed;
+    });
+  });
 
   panel.querySelectorAll("[data-mbrc-progression-field]").forEach(input => {
     input.addEventListener("change", async () => {
