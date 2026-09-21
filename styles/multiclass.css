@@ -101,13 +101,24 @@
 
 .mbrc-class-row {
   display: grid;
-  grid-template-columns: 24px minmax(120px, 1.6fr) 62px minmax(88px, 1fr) 76px 92px 30px;
+  grid-template-columns: 24px minmax(105px, 1.45fr) 54px minmax(70px, 0.9fr) minmax(82px, 1fr) 72px 48px 30px;
   gap: 5px;
   align-items: end;
   padding: 5px;
   border: 1px solid rgba(0, 0, 0, 0.16);
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.025);
+}
+
+.mbrc-active-field {
+  align-items: center;
+  justify-content: end;
+}
+
+.mbrc-active-field input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 4px auto 2px;
 }
 
 .mbrc-class-drag {
@@ -176,15 +187,20 @@
 
 @media (max-width: 760px) {
   .mbrc-class-row {
-    grid-template-columns: 24px minmax(120px, 1fr) 58px 84px 72px;
+    grid-template-columns: 24px minmax(105px, 1fr) 54px 76px;
   }
 
+  .mbrc-class-row label:nth-of-type(4),
   .mbrc-class-row label:nth-of-type(5) {
-    grid-column: 2 / span 2;
+    grid-column: span 2;
+  }
+
+  .mbrc-active-field {
+    grid-column: 3;
   }
 
   .mbrc-remove-class {
-    grid-column: 5;
+    grid-column: 4;
   }
 
   .mbrc-sync-toggle {

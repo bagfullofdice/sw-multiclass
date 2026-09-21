@@ -2,7 +2,7 @@
   "id": "sw-multiclass",
   "title": "S&W Multi-Class",
   "description": "Multi-class and dual-class character progression support for the Swords & Wizardry Foundry VTT system.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "authors": [
     {
       "name": "Phil Carr / ChatGPT"
@@ -31,5 +31,5 @@
     "styles/multiclass.css"
   ],
   "manifest": "https://raw.githubusercontent.com/bagfullofdice/sw-multiclass/main/module.json",
-  "download": "https://raw.githubusercontent.com/bagfullofdice/sw-multiclass/main/dist/sw-multiclass-v0.1.1.zip"
+  "download": "https://raw.githubusercontent.com/bagfullofdice/sw-multiclass/main/dist/sw-multiclass-v0.1.2.zip"
 }

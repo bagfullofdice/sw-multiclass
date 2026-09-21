@@ -37,6 +37,7 @@ function normalizeClassEntry(entry = {}) {
     name: String(entry.name || "").trim(),
     level: Math.max(0, asNumber(entry.level, 1)),
     xp: Math.max(0, asNumber(entry.xp, 0)),
+    nextLevelXp: Math.max(0, asNumber(entry.nextLevelXp, 0)),
     xpBonus: asNumber(entry.xpBonus, 0),
     status: entry.status === "former" ? "former" : "active"
   };
@@ -75,6 +76,7 @@ function seedFromActor(actor, data) {
     name: className,
     level,
     xp,
+    nextLevelXp: 0,
     xpBonus,
     status: "active"
   }];
@@ -95,6 +97,17 @@ async function saveProgression(actor, data) {
   await actor.setFlag(MODULE_ID, FLAG_ROOT, clean);
   if (clean.enabled && clean.syncSystemFields) await syncCompatibilityFields(actor, clean);
   return clean;
+}
+
+function distributeSharedXp(data) {
+  if (data.mode !== "multiclass") return;
+  const activeClasses = data.classes.filter(c => c.status === "active");
+  if (!activeClasses.length) return;
+
+  // Split the total shared XP evenly between active classes.
+  // Any indivisible remainder is dropped rather than creating fractional XP.
+  const share = Math.floor(Math.max(0, asNumber(data.sharedXp, 0)) / activeClasses.length);
+  for (const entry of activeClasses) entry.xp = share;
 }
 
 function getActiveClasses(data) {
@@ -171,9 +184,6 @@ function esc(value) {
 }
 
 function classRow(entry, index, mode) {
-  const statusText = mode === "dualclass" ? "Current" : "Active";
-  const formerText = mode === "dualclass" ? "Former" : "Inactive";
-
   return `
     <div class="mbrc-class-row" data-class-id="${esc(entry.id)}">
       <div class="mbrc-class-drag">${index + 1}</div>
@@ -190,15 +200,16 @@ function classRow(entry, index, mode) {
         <input type="number" min="0" step="1" data-mbrc-class-field="xp" value="${entry.xp}">
       </label>
       <label>
+        <span>Next Level XP</span>
+        <input type="number" min="0" step="1" data-mbrc-class-field="nextLevelXp" value="${entry.nextLevelXp}">
+      </label>
+      <label>
         <span>XP Bonus %</span>
         <input type="number" step="1" data-mbrc-class-field="xpBonus" value="${entry.xpBonus}">
       </label>
-      <label>
-        <span>Status</span>
-        <select data-mbrc-class-field="status">
-          <option value="active" ${entry.status === "active" ? "selected" : ""}>${statusText}</option>
-          <option value="former" ${entry.status === "former" ? "selected" : ""}>${formerText}</option>
-        </select>
+      <label class="mbrc-active-field">
+        <span>Active</span>
+        <input type="checkbox" data-mbrc-class-field="active" ${entry.status === "active" ? "checked" : ""}>
       </label>
       <button type="button" class="mbrc-icon-button mbrc-remove-class" title="Remove class" aria-label="Remove class">
         <i class="fas fa-trash"></i>
@@ -264,7 +275,7 @@ function makeProgressionPanel(actor, data) {
       </div>
 
       <p class="mbrc-progression-help">
-        Multi-Class tracks concurrent classes. Dual-Class keeps former classes and one current active class. This panel stores progression in module flags so the S&amp;W system schema remains untouched.
+        Multi-Class tracks concurrent classes. Shared XP is divided evenly among checked Active classes; indivisible remainder XP is dropped. Dual-Class keeps former classes and one current active class. This panel stores progression in module flags so the S&amp;W system schema remains untouched.
       </p>
     </div>
   `;
@@ -334,6 +345,7 @@ async function wirePanel(panel, actor) {
           data.syncSystemFields = input.checked;
         } else if (field === "sharedXp") {
           data.sharedXp = Math.max(0, asNumber(input.value, 0));
+          distributeSharedXp(data);
         } else if (field === "mode") {
           data.mode = input.value === "dualclass" ? "dualclass" : "multiclass";
           if (data.mode === "dualclass") {
@@ -344,8 +356,10 @@ async function wirePanel(panel, actor) {
             }
           } else {
             for (const c of data.classes) c.status = "active";
+            distributeSharedXp(data);
           }
         }
+      if (data.mode === "multiclass") distributeSharedXp(data);
       });
     });
   });
@@ -363,10 +377,12 @@ async function wirePanel(panel, actor) {
         if (field === "name") entry.name = input.value.trim();
         else if (field === "level") entry.level = Math.max(0, asNumber(input.value, 0));
         else if (field === "xp") entry.xp = Math.max(0, asNumber(input.value, 0));
+        else if (field === "nextLevelXp") entry.nextLevelXp = Math.max(0, asNumber(input.value, 0));
         else if (field === "xpBonus") entry.xpBonus = asNumber(input.value, 0);
-        else if (field === "status") {
-          entry.status = input.value === "former" ? "former" : "active";
+        else if (field === "active") {
+          entry.status = input.checked ? "active" : "former";
           enforceDualClassStatus(data, classId);
+          if (data.mode === "multiclass") distributeSharedXp(data);
         }
       });
     });
@@ -383,6 +399,7 @@ async function wirePanel(panel, actor) {
         name: "New Class",
         level: 1,
         xp: 0,
+        nextLevelXp: 0,
         xpBonus: 0,
         status: "active"
       });
