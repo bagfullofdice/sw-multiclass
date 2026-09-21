@@ -436,9 +436,44 @@ async function injectProgression(app, html) {
   await wirePanel(panel, actor);
 }
 
+
+
+async function handleExternalSharedXpUpdate(actor, changed, options) {
+  if (!actor || actor.documentName !== "Actor" || actor.type !== "character") return;
+  if (game.system.id !== "swords-wizardry") return;
+  if (options?.swMulticlassInternal) return;
+
+  const path = `flags.${MODULE_ID}.${FLAG_ROOT}.sharedXp`;
+  const flatChanged = Object.prototype.hasOwnProperty.call(changed ?? {}, path);
+  const nestedChanged = foundry.utils.hasProperty(changed ?? {}, path);
+  if (!flatChanged && !nestedChanged) return;
+
+  const data = getProgression(actor);
+  if (!data.enabled || data.mode !== "multiclass") return;
+
+  distributeSharedXp(data);
+
+  const clean = {
+    enabled: Boolean(data.enabled),
+    mode: data.mode,
+    syncSystemFields: data.syncSystemFields !== false,
+    collapsed: data.collapsed !== false,
+    sharedXp: Math.max(0, asNumber(data.sharedXp, 0)),
+    classes: data.classes.map(normalizeClassEntry)
+  };
+
+  await actor.update(
+    { [`flags.${MODULE_ID}.${FLAG_ROOT}`]: clean },
+    { swMulticlassInternal: true }
+  );
+
+  if (clean.syncSystemFields) await syncCompatibilityFields(actor, clean);
+}
+
 Hooks.once("init", () => {
   console.log(`${MODULE_ID} | Initializing multi-class and dual-class support`);
 });
 
 Hooks.on("renderActorSheet", injectProgression);
 Hooks.on("renderActorSheetV2", injectProgression);
+Hooks.on("updateActor", handleExternalSharedXpUpdate);
