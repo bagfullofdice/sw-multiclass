@@ -50,21 +50,30 @@
 }
 
 .mbrc-collapse-toggle {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
   padding: 0;
+  margin: 0;
   border: 0;
   background: transparent;
   box-shadow: none;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
   flex: 0 0 auto;
 }
 
 .mbrc-collapse-toggle:hover,
 .mbrc-collapse-toggle:focus {
-  background: transparent;
+  background: rgba(0, 0, 0, 0.08);
   box-shadow: none;
+}
+
+.mbrc-chevron {
+  font-size: 0.68rem;
+  line-height: 1;
 }
 
 .mbrc-enable-toggle {
